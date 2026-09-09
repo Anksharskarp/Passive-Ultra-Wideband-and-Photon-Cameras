@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Photon simulator</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Photon simulator home"
+        >Photon simulator</a
+      >
+      <span class="edition">Passive ultra-wideband imaging</span>
+      <span class="local"><i></i> Local simulation</span>
+      <a class="mobile-setup" href="#controls">Settings</a>
+    </header>
+    <div class="workspace">
+      <aside id="controls" class="controls" aria-label="Experiment controls">
+        <div class="control-heading">
+          <span class="eyebrow">Experiment setup</span
+          ><button id="reset" class="text-button">Reset</button>
+        </div>
+        <form id="settings">
+          <section>
+            <h2>Source</h2>
+            <label
+              >Flux model<select id="kind">
+                <option value="sine">Sinusoid</option>
+                <option value="mixture">Slow + fast modulation</option>
+                <option value="pulse">Gaussian pulse train</option>
+                <option value="sampled">Sampled rates / CSV</option>
+                <option value="media">Image / video</option>
+              </select></label
+            >
+            <div class="two-fields">
+              <label
+                >Exposure <em>ms</em
+                ><input
+                  id="duration"
+                  type="number"
+                  min="0.0001"
+                  max="10000"
+                  step="any"
+                  value="200" /></label
+              ><label id="rate-label"
+                >Mean flux <em>photons/s</em
+                ><input
+                  id="mean_rate"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="3000"
+              /></label>
+            </div>
+            <div data-source="sine mixture pulse">
+              <label
+                >Frequency / repetition rate <em>Hz</em
+                ><input
+                  id="frequency"
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value="8000"
+              /></label>
+            </div>
+            <div data-source="mixture">
+              <label
+                >Slow frequency <em>Hz</em
+                ><input
+                  id="slow_frequency"
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value="50"
+              /></label>
+            </div>
+            <div data-source="sine mixture">
+              <label class="range-label" for="modulation"
+                >Modulation depth
+                <output id="modulation-value">0.85</output></label
+              ><input
+                id="modulation"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.85"
+              />
+            </div>
+            <div data-source="pulse" class="two-fields">
+              <label
+                >Pulse FWHM <em>ps</em
+                ><input
+                  id="pulse_width"
+                  type="number"
+                  min="0.1"
+                  step="any"
+                  value="80" /></label
+              ><label
+                >Background fraction<input
+                  id="background"
+                  type="number"
+                  min="0"
+                  max="0.99"
+                  step="0.01"
+                  value="0.05"
+              /></label>
+            </div>
+            <div data-source="sine mixture pulse">
+              <label
+                >Source representation<select id="sampling">
+                  <option value="continuous">Continuous function</option>
+                  <option value="midpoint">Bin-center samples, held</option>
+                  <option value="average">Bin averages, held</option>
+                </select></label
+              >
+            </div>
+            <label id="source-step-label"
+              >Source bin width <em>µs</em
+              ><input
+                id="source_step"
+                type="number"
+                min="0.000001"
+                step="any"
+                value="100"
+            /></label>
+            <div data-source="sampled">
+              <label
+                >Rates <em>photons/s, comma-separated</em
+                ><textarea id="rates" rows="3">
+1000, 1000, 3000, 8000, 3000, 1000, 0, 0</textarea></label
+              ><label class="upload"
+                >Load CSV / text<input
+                  id="csv-file"
+                  type="file"
+                  accept=".csv,.txt"
+              /></label>
+              <p class="hint">
+                One rate per bin. Exposure = number of rates × bin width.
+              </p>
+            </div>
+            <div data-source="media">
+              <div class="two-fields">
+                <label
+                  >Frame rate <em>fps</em
+                  ><input
+                    id="fps"
+                    type="number"
+                    min="0.1"
+                    max="1000"
+                    step="any"
+                    value="24" /></label
+                ><label
+                  >Resize longest side<select id="media-size">
+                    <option value="16">16 pixels</option>
+                    <option value="32" selected>32 pixels</option>
+                    <option value="64">64 pixels</option>
+                  </select></label
+                >
+              </div>
+              <label class="upload"
+                >Choose image / video<input
+                  id="media-file"
+                  type="file"
+                  accept="image/*,video/*"
+              /></label>
+              <label class="check"
+                ><input id="linearize" type="checkbox" checked /> Approximate
+                sRGB to linear light</label
+              >
+              <p id="media-info" class="hint">
+                Built-in moving target · 24 frames · 32 × 32. Uploads use up to
+                the first second of video, at most 32 frames.
+              </p>
+              <button type="button" class="text-button" id="demo-media">
+                Use moving target
+              </button>
+            </div>
+          </section>
+          <section>
+            <h2>Detector</h2>
+            <label class="range-label" for="qe"
+              >Detection efficiency <output id="qe-value">100%</output></label
+            ><input
+              id="qe"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="1"
+            />
+            <div class="two-fields">
+              <label
+                >Dark counts <em>/s/pixel</em
+                ><input
+                  id="dark_rate"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="0" /></label
+              ><label
+                >Dead time <em>µs</em
+                ><input
+                  id="dead_time"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="0"
+              /></label>
+            </div>
+            <label
+              >Dead-time model<select id="dead_model">
+                <option value="none">Off</option>
+                <option value="nonparalyzable">Nonparalyzable (SPAD)</option>
+                <option value="paralyzable">Paralyzable</option>
+              </select></label
+            >
+            <div class="two-fields">
+              <label
+                >Timing jitter σ <em>ps</em
+                ><input
+                  id="jitter"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="0" /></label
+              ><label
+                >Timestamp step Q <em>ps</em
+                ><input
+                  id="quantization"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="0"
+              /></label>
+            </div>
+            <p class="hint">
+              Source bins and timestamp bins are independent. Zero jitter or
+              step means ideal timing.
+            </p>
+          </section>
+          <details>
+            <summary>Frequency probing</summary>
+            <div class="two-fields">
+              <label
+                >Scan maximum <em>Hz</em
+                ><input
+                  id="probe_max"
+                  type="number"
+                  min="0.000001"
+                  step="any"
+                  value="10000" /></label
+              ><label
+                >Scan spacing <em>Hz; 0 = auto</em
+                ><input
+                  id="probe_step"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value="0"
+              /></label>
+            </div>
+            <label
+              >False-alarm probability α<select id="alpha">
+                <option value="0.01">0.01</option>
+                <option value="0.001" selected>0.001</option>
+                <option value="0.0001">0.0001</option>
+                <option value="0.00001">0.00001</option>
+              </select></label
+            >
+            <p class="hint">
+              Probes use integer multiples of 1/exposure. Auto spacing limits
+              the display to 2,000 candidates; skipped frequencies are not
+              tested.
+            </p>
+          </details>
+          <section class="run-controls">
+            <div class="seed-row">
+              <label
+                >Random seed<input
+                  id="seed"
+                  type="number"
+                  min="0"
+                  max="4294967295"
+                  step="1"
+                  value="7" /></label
+              ><button
+                id="new-seed"
+                type="button"
+                title="Draw another photon realization"
+              >
+                New photons
+              </button>
+            </div>
+            <button class="primary" id="run" type="submit">
+              Simulate arrivals
+            </button>
+            <label class="check"
+              ><input id="auto-run" type="checkbox" checked /> Update when
+              settings change</label
+            >
+          </section>
+        </form>
+        <a class="mobile-setup" href="#plots">Back to plots</a>
+      </aside>
+      <main id="plots">
+        <div class="intro">
+          <div>
+            <h1>Photon arrivals</h1>
+            <p>
+              Poisson arrivals from continuous or sampled flux, with independent
+              detector controls.
+            </p>
+          </div>
+          <button id="export" disabled>Export run</button>
+        </div>
+        <div class="presets" aria-label="Example experiments">
+          <span>Examples</span
+          ><button data-preset="sparse" class="active">
+            Sparse, fast signal</button
+          ><button data-preset="alias">Coarse source bins</button
+          ><button data-preset="dead">Detector saturation</button
+          ><button data-preset="pulse">Picosecond pulses</button
+          ><button data-preset="media">Moving image</button>
+        </div>
+        <div class="status-line">
+          <span id="status" role="status" aria-live="polite"
+            >Preparing first simulation…</span
+          ><span id="timing"></span>
+        </div>
+        <div id="error" class="error" role="alert" hidden></div>
+        <div class="metrics" aria-label="Run measurements">
+          <div>
+            <span>Incident photons</span><strong id="incident">—</strong
+            ><small id="expected">— expected</small>
+          </div>
+          <div>
+            <span>Recorded detections</span><strong id="detected">—</strong
+            ><small id="dark-count">Includes dark counts</small>
+          </div>
+          <div>
+            <span>Detection rate</span><strong id="rate">—</strong
+            ><small>per second, per pixel</small>
+          </div>
+          <div>
+            <span>Timestamp limit</span><strong id="nyquist">—</strong
+            ><small id="nyquist-note">1 / (2Q)</small>
+          </div>
+        </div>
+        <section id="media-panel" class="panel" hidden>
+          <div class="panel-heading">
+            <div>
+              <h2>Image and per-pixel counts</h2>
+            </div>
+            <button id="play" type="button">Play</button>
+          </div>
+          <div class="media-images">
+            <figure>
+              <canvas
+                id="source-image"
+                aria-label="Input intensity; click to select a pixel"
+              ></canvas>
+              <figcaption>Input flux · click a pixel to inspect</figcaption>
+            </figure>
+            <figure>
+              <canvas
+                id="count-image"
+                aria-label="Detected photons in the selected frame"
+              ></canvas>
+              <figcaption id="count-caption">
+                Detected photons per frame
+              </figcaption>
+            </figure>
+          </div>
+          <div class="frame-controls">
+            <label for="frame"
+              >Frame <output id="frame-label">1 / 24</output></label
+            ><input id="frame" type="range" min="0" max="23" value="0" /><span
+              id="pixel-label"
+              >Pixel (0, 0)</span
+            >
+          </div>
+        </section>
+        <section class="panel time-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Flux and arrivals</h2>
+            </div>
+            <div class="mini-actions">
+              <button id="zoom-period">One period</button
+              ><button id="zoom-reset">Full exposure</button
+              ><button data-png="flux" title="Save source plot">PNG</button>
+            </div>
+          </div>
+          <div class="legend">
+            <span class="teal">Reference flux</span
+            ><span class="amber">Simulated source</span
+            ><label class="violet"
+              ><input id="reconstruction" type="checkbox" checked /> Thresholded
+              Fourier estimate</label
+            >
+          </div>
+          <canvas
+            id="flux"
+            class="chart"
+            aria-label="Flux against absolute time. Drag to zoom; double-click to reset."
+          ></canvas>
+          <div class="chart-note">
+            <span id="flux-note"
+              >Curves show the average flux over each display bin.</span
+            ><span>Drag to zoom · double-click to reset</span>
+          </div>
+          <canvas
+            id="events"
+            class="event-chart"
+            aria-label="Incident and detected photon timestamps"
+          ></canvas>
+          <div class="zoom-controls">
+            <label
+              >Start <em>s</em
+              ><input
+                id="view-start"
+                type="number"
+                min="0"
+                step="any"
+                value="0" /></label
+            ><label
+              >Window <em>s</em
+              ><input
+                id="view-span"
+                type="number"
+                min="0"
+                step="any"
+                value="0.2"
+            /></label>
+            <div class="pan">
+              <label for="pan">Move through exposure</label
+              ><input id="pan" type="range" min="0" max="1000" value="0" />
+            </div>
+            <label
+              >Histogram bins<select id="bins">
+                <option>32</option>
+                <option>64</option>
+                <option selected>100</option>
+                <option>256</option>
+                <option>512</option>
+              </select></label
+            >
+          </div>
+        </section>
+        <div class="plot-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Count histogram</h2>
+              </div>
+              <button data-png="histogram">PNG</button>
+            </div>
+            <div class="legend">
+              <span class="blue">Recorded counts / bin width</span
+              ><span class="amber">Expected rate before dead time</span>
+            </div>
+            <canvas
+              id="histogram"
+              class="chart"
+              aria-label="Photon histogram and expected rate"
+            ></canvas>
+            <p class="chart-note">
+              Same time window as above. Changing these bins changes the plot,
+              not the photons.
+            </p>
+          </section>
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Fourier spectrum</h2>
+              </div>
+              <button data-png="spectrum">PNG</button>
+            </div>
+            <div class="legend">
+              <span class="violet">|Fourier coefficient|</span
+              ><span class="red">Approximate CFAR threshold</span
+              ><label
+                ><input id="log-frequency" type="checkbox" /> Log
+                frequency</label
+              >
+            </div>
+            <canvas
+              id="spectrum"
+              class="chart"
+              aria-label="Frequency spectrum of the complete timestamp stream"
+            ></canvas>
+            <p id="spectrum-note" class="chart-note"></p>
+          </section>
+        </div>
+        <div id="notices" class="notices"></div>
+        <section class="interpretation">
+          <div>
+            <span class="eyebrow">Experiment notes</span>
+            <h2 id="interpret-title">Sparse arrivals, fast modulation</h2>
+            <p id="interpret-body">
+              The time between photons does not set the frequency limit. Each
+              absolute timestamp contributes a phase to the Fourier probe.
+              Repetition and enough detections let those phases add up, even
+              when a conventional histogram looks noisy.
+            </p>
+          </div>
+          <div class="frequency-list">
+            <span class="eyebrow">Strongest accepted probes</span>
+            <div id="peaks">Run an experiment to see peaks.</div>
+          </div>
+        </section>
+        <details class="methods">
+          <summary>Model assumptions and paper references</summary>
+          <p>
+            Incident arrivals follow an inhomogeneous Poisson process. For a
+            held source bin, the count is Poisson(rate × duration) and arrival
+            times are continuous and uniform within that bin. Detection
+            efficiency and dark events come before dead time; Gaussian jitter
+            and timestamp rounding come afterward.
+          </p>
+          <p>
+            The Fourier plot probes the complete recorded stream, even while the
+            time plots are zoomed. DC is reported separately. The CFAR threshold
+            is the paper’s low-flux approximation; it is not calibrated for
+            strong dead time or very few detections. Reconstruction uses DC plus
+            twice the real part of positive-frequency coefficients, keeping at
+            most 40 accepted probes. It is an illustrative estimate without
+            dead-time compensation or jitter deconvolution.
+          </p>
+          <p>
+            Image/video values become assumed relative flux after optional
+            approximate sRGB linearization and spatial resizing. Frames are held
+            over their intervals. A conventional video contains no measured
+            picosecond light transport. This input mode does not implement
+            Transient NeRF or a lidar renderer.
+          </p>
+          <p>
+            <a
+              href="https://www.dgp.toronto.edu/projects/ultra-wideband/"
+              target="_blank"
+              rel="noreferrer"
+              >Passive Ultra-Wideband Single-Photon Imaging</a
+            >
+            ·
+            <a
+              href="https://anaghmalik.com/TransientNeRF/"
+              target="_blank"
+              rel="noreferrer"
+              >Transient NeRF</a
+            >
+          </p>
+        </details>
+        <footer>
+          All computation stays on this computer.
+          <span
+            >Poisson arrivals · independent detector controls · reproducible
+            seeds</span
+          >
+        </footer>
+      </main>
+    </div>
+    <div id="tooltip" class="tooltip" hidden></div>
+  </body>
+</html>
